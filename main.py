@@ -141,15 +141,27 @@ def setup_rag_chain(vectorstore):
     return qa_chain
 
 # Streamlit UI
-st.title("HRMS Service Agent")
-st.write("Ask questions about HRMS processes and policies")
+st.title("Tafuri HRMS Service Agent")
+st.write("Ask questions about our Tafuri HRMS")
 
 # Initialize vector store and QA chain
 if st.session_state.vectorstore is None:
-    with st.spinner("Loading HRMS documentation..."):
-        documents = load_hrms_documents()
-        st.session_state.vectorstore = create_vector_store(documents)
+    if os.path.exists("./chroma_db") and os.path.isdir("./chroma_db") and os.listdir("./chroma_db"):
+        # If DB already exists, load it directly
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        client = chromadb.PersistentClient(path="./chroma_db")
+        st.session_state.vectorstore = Chroma(
+            embedding_function=embeddings,
+            persist_directory="./chroma_db",
+            collection_name="hrms_collection",
+            client=client
+        )
         st.session_state.qa_chain = setup_rag_chain(st.session_state.vectorstore)
+    else:
+        with st.spinner("Loading HRMS documentation..."):
+            documents = load_hrms_documents()
+            st.session_state.vectorstore = create_vector_store(documents)
+            st.session_state.qa_chain = setup_rag_chain(st.session_state.vectorstore)
 
 # Display chat history
 for message in st.session_state.chat_history:
